@@ -1,0 +1,3 @@
+./spring-websocket/gradle/*
+./spring-websocket/build/*
+./fe/node_modules/*

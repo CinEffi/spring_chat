@@ -19,12 +19,10 @@ public class WebSocketHandler extends TextWebSocketHandler {
     //웹소켓 연결 시
 
     public boolean isSessionOK(WebSocketSession session) { return session != null && session.isOpen(); }
-    public void sessionDelete(WebSocketSession session) {
-        var sessionId = session.getId();
-        Long chatroomId = session_chatroom.get(sessionId);
-        if (chatroomId != 0L) { chatroom_sessions.get(chatroomId).remove(sessionId); }
-        session_chatroom.remove(sessionId);
-        sessions.remove(sessionId);
+    public void sessionDelete(WebSocketSession session) throws Exception {
+        chatroomLeave(session);
+        session_chatroom.remove(session.getId());
+        sessions.remove(session.getId());
     }
     public void sendToSession(WebSocketSession session, Message message) throws Exception {
         if (isSessionOK(session)) {session.sendMessage(new TextMessage(Utils.getString(message)));}
@@ -92,6 +90,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
             case "SEND" :
                 sendMessageToChatroom(session, message.getData().toString());
                 break;
+            case "LEAVE" :
+                chatroomLeave(session);
             default :
                 System.out.println("Unknown type : " + type);
         }//        message.setSender(session.getId());//        WebSocketSession receiver = sessions.get(message.getReceiver());//        if (receiver != null && receiver.isOpen()) {//            receiver.sendMessage(new TextMessage(Utils.getString(message)));//        }
@@ -138,12 +138,9 @@ public class WebSocketHandler extends TextWebSocketHandler {
         try {
             Long chatroomId = Long.parseLong(messageData);// 실패시 exception인데, 어떻게 되나 한번 보자. 웹소켓에 잘 전달이 되는지
 
-            if (chatroom_sessions.containsKey(chatroomId)) {
+            if (session_chatroom.get(sessionId) == 0L && chatroom_sessions.containsKey(chatroomId)) {
                 responseResult = "JOIN_SUCCESS";
-                Long exChatroomId = session_chatroom.get(sessionId);
-                if (exChatroomId != 0L) {
-                    chatroom_sessions.get(exChatroomId).remove(sessionId);
-                }
+                chatroomLeave(session);
                 session_chatroom.put(sessionId, chatroomId);
                 chatroom_sessions.get(chatroomId).add(session.getId());
             }
@@ -163,6 +160,20 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
         ////////////////////////////////////////////////////////////////////////
         System.out.println("WebSocketHandler.chatroomJoin : done");
+    }
+
+    private void chatroomLeave(WebSocketSession session) throws Exception {
+        System.out.println("WebSocketHandler.chatroomLeave");
+        System.out.println("session = " + session);
+
+        var sessionId = session.getId();
+        Long exChatroomId = session_chatroom.get(sessionId);
+        if (exChatroomId != 0L) {
+            sendMessageToChatroom(session, "내 간데이");
+            chatroom_sessions.get(exChatroomId).remove(sessionId);
+        }
+        session_chatroom.put(session.getId(), 0L);
+        System.out.println("WebSocketHandler.chatroomLeave - done");
     }
 
     private void sendMessageToChatroom(WebSocketSession session, String messageData) throws Exception  {
@@ -194,23 +205,13 @@ public class WebSocketHandler extends TextWebSocketHandler {
     //소켓 연결 종료
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        String sessionId = session.getId();
-
+        var sessionId = session.getId();
         System.out.println("WebSocketHandler.afterConnectionClosed/session : " + sessionId);
         System.out.println("status = " + status);
-        ////////////////////////////////////////////////////////////////////////
-        Long exChatroomId = session_chatroom.get(sessionId);
-        if (exChatroomId != 0L) {
-            sendMessageToChatroom(session, "내 간데이");
-            chatroom_sessions.get(exChatroomId).remove(sessionId);
-        }
-        session_chatroom.remove(session.getId());
-        sessions.remove(sessionId);
+        sessionDelete(session);
         System.out.println("session disconnected : " + sessionId);
-
         ////////////////////////////////////////////////////////////////////////
-        System.out.println("WebSocketHandler.afterConnectionClosed done/session : " + sessionId);
-
+        System.out.println("WebSocketHandler.afterConnectionClosed done/session : " + session.getId());
     }
 
     @Override
