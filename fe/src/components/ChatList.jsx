@@ -23,10 +23,14 @@ function ChatList() {
       }
 
       const handleRoomList = (event) => {
-        const response = JSON.parse(event.data);
-        if (response.type === 'CHATROOM_LIST') {
-          const roomIds = JSON.parse(response.data);
-          setRooms(roomIds.map((id) => ({ id, name: `Room ${id}` })));
+        try {
+          const response = JSON.parse(event.data);
+          if (response.type === 'CHATROOM_LIST') {
+            const roomIds = JSON.parse(response.data);
+            setRooms(roomIds.map((id) => ({ id, name: `Room ${id}` })));
+          }
+        } catch (error) {
+          setRooms([]);
         }
       };
 
